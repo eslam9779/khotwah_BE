@@ -1,0 +1,704 @@
+{
+  "info": {
+    "_postman_id": "classpilot-api-v1",
+    "name": "ClassPilot API v1",
+    "description": "Complete API collection for ClassPilot backend. Base URL: http://localhost:3000\n\n## How to use:\n1. Import this file into Postman\n2. Set the `base_url` variable to your server URL\n3. Register a teacher account, then login — the token is saved automatically\n4. Use the teacher token for all teacher endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "teacher_id", "value": "", "type": "string" },
+    { "key": "student_id", "value": "", "type": "string" },
+    { "key": "class_id", "value": "", "type": "string" },
+    { "key": "session_id", "value": "", "type": "string" },
+    { "key": "payment_id", "value": "", "type": "string" },
+    { "key": "exam_id", "value": "", "type": "string" },
+    { "key": "invite_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3000/health", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register Teacher",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  console.log('Registered:', json);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Ahmed\",\n  \"lastName\": \"Hassan\",\n  \"role\": \"TEACHER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register Parent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Mohamed\",\n  \"lastName\": \"Ali\",\n  \"role\": \"PARENT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (saves token)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('access_token', json.data.accessToken);",
+            "  pm.collectionVariables.set('refresh_token', json.data.refreshToken);",
+            "  console.log('Token saved!');",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@example.com\",\n  \"password\": \"Password123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('access_token', json.data.accessToken);",
+            "  pm.collectionVariables.set('refresh_token', json.data.refreshToken);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍🏫 Teacher Workspace",
+      "item": [
+        {
+          "name": "Get Workspace",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/teacher/workspace", "host": ["{{base_url}}"], "path": ["teacher", "workspace"] }
+          }
+        },
+        {
+          "name": "Update Workspace",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/teacher/workspace", "host": ["{{base_url}}"], "path": ["teacher", "workspace"] },
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Math teacher with 10 years experience\",\n  \"phone\": \"+201001234567\",\n  \"subject\": \"Mathematics\"\n}" }
+          }
+        },
+        {
+          "name": "Toggle QR — Enable",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/teacher/workspace/qr", "host": ["{{base_url}}"], "path": ["teacher", "workspace", "qr"] },
+            "body": { "mode": "raw", "raw": "{\n  \"enabled\": true\n}" }
+          }
+        },
+        {
+          "name": "Toggle QR — Disable",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/teacher/workspace/qr", "host": ["{{base_url}}"], "path": ["teacher", "workspace", "qr"] },
+            "body": { "mode": "raw", "raw": "{\n  \"enabled\": false\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍🎓 Students",
+      "item": [
+        {
+          "name": "List Students",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/students?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["students"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Student",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('student_id', json.data.id);",
+            "  console.log('Student ID saved:', json.data.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/students", "host": ["{{base_url}}"], "path": ["students"] },
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Sara\",\n  \"lastName\": \"Mohamed\",\n  \"email\": \"sara@example.com\",\n  \"phone\": \"+201001234567\",\n  \"notes\": \"Good student\"\n}" }
+          }
+        },
+        {
+          "name": "Get Student",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/students/{{student_id}}", "host": ["{{base_url}}"], "path": ["students", "{{student_id}}"] }
+          }
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/students/{{student_id}}", "host": ["{{base_url}}"], "path": ["students", "{{student_id}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Updated notes\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Student (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/students/{{student_id}}", "host": ["{{base_url}}"], "path": ["students", "{{student_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏫 Classes",
+      "item": [
+        {
+          "name": "List Classes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/classes", "host": ["{{base_url}}"], "path": ["classes"] }
+          }
+        },
+        {
+          "name": "Create Class",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('class_id', json.data.id);",
+            "  console.log('Class ID saved:', json.data.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/classes", "host": ["{{base_url}}"], "path": ["classes"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Math Group A\",\n  \"description\": \"Advanced mathematics\",\n  \"subject\": \"Mathematics\"\n}" }
+          }
+        },
+        {
+          "name": "Get Class",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/classes/{{class_id}}", "host": ["{{base_url}}"], "path": ["classes", "{{class_id}}"] }
+          }
+        },
+        {
+          "name": "Update Class",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/classes/{{class_id}}", "host": ["{{base_url}}"], "path": ["classes", "{{class_id}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Math Group A — Updated\"\n}" }
+          }
+        },
+        {
+          "name": "Enroll Student in Class",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/classes/{{class_id}}/enroll", "host": ["{{base_url}}"], "path": ["classes", "{{class_id}}", "enroll"] },
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{student_id}}\"\n}" }
+          }
+        },
+        {
+          "name": "Remove Student from Class",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/classes/{{class_id}}/students/{{student_id}}", "host": ["{{base_url}}"], "path": ["classes", "{{class_id}}", "students", "{{student_id}}"] }
+          }
+        },
+        {
+          "name": "Deactivate Class",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/classes/{{class_id}}", "host": ["{{base_url}}"], "path": ["classes", "{{class_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Attendance",
+      "item": [
+        {
+          "name": "List Sessions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/attendance/sessions?classId={{class_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["attendance", "sessions"],
+              "query": [{ "key": "classId", "value": "{{class_id}}", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Create Session",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('session_id', json.data.id);",
+            "  console.log('Session ID saved:', json.data.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/attendance/sessions", "host": ["{{base_url}}"], "path": ["attendance", "sessions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"classId\": \"{{class_id}}\",\n  \"sessionDate\": \"2026-10-16T10:00:00.000Z\",\n  \"topic\": \"Chapter 5 — Algebra\"\n}" }
+          }
+        },
+        {
+          "name": "Mark Attendance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/attendance/sessions/{{session_id}}/mark", "host": ["{{base_url}}"], "path": ["attendance", "sessions", "{{session_id}}", "mark"] },
+            "body": { "mode": "raw", "raw": "{\n  \"records\": [\n    {\n      \"studentId\": \"{{student_id}}\",\n      \"status\": \"PRESENT\",\n      \"notes\": \"\"\n    }\n  ]\n}" }
+          }
+        },
+        {
+          "name": "Get Session Records",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/attendance/sessions/{{session_id}}/records", "host": ["{{base_url}}"], "path": ["attendance", "sessions", "{{session_id}}", "records"] }
+          }
+        },
+        {
+          "name": "Generate QR Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/attendance/qr/generate", "host": ["{{base_url}}"], "path": ["attendance", "qr", "generate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sessionId\": \"{{session_id}}\"\n}" }
+          }
+        },
+        {
+          "name": "Scan QR (Student marks attendance)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/attendance/qr/scan", "host": ["{{base_url}}"], "path": ["attendance", "qr", "scan"] },
+            "body": { "mode": "raw", "raw": "{\n  \"qrToken\": \"PASTE_QR_TOKEN_HERE\",\n  \"studentId\": \"{{student_id}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Payments",
+      "item": [
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/payments?studentId={{student_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "studentId", "value": "{{student_id}}", "disabled": true },
+                { "key": "status", "value": "PENDING", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Payment",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('payment_id', json.data.id);",
+            "  console.log('Payment ID saved:', json.data.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/payments", "host": ["{{base_url}}"], "path": ["payments"] },
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{student_id}}\",\n  \"amount\": 500,\n  \"currency\": \"EGP\",\n  \"description\": \"Monthly fees — October\",\n  \"dueDate\": \"2026-10-31T00:00:00.000Z\"\n}" }
+          }
+        },
+        {
+          "name": "Update Payment Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/payments/{{payment_id}}", "host": ["{{base_url}}"], "path": ["payments", "{{payment_id}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"PAID\",\n  \"paidAt\": \"2026-10-16T00:00:00.000Z\"\n}" }
+          }
+        },
+        {
+          "name": "Add Full Exemption",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/payments/{{payment_id}}/exemption", "host": ["{{base_url}}"], "path": ["payments", "{{payment_id}}", "exemption"] },
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"FULL\",\n  \"reason\": \"Financial hardship case\"\n}" }
+          }
+        },
+        {
+          "name": "Add Partial Exemption (50%)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/payments/{{payment_id}}/exemption", "host": ["{{base_url}}"], "path": ["payments", "{{payment_id}}", "exemption"] },
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"PARTIAL\",\n  \"reason\": \"Sibling discount\",\n  \"exemptPercent\": 50\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Exams & Grades",
+      "item": [
+        {
+          "name": "List Exams",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/exams", "host": ["{{base_url}}"], "path": ["exams"] }
+          }
+        },
+        {
+          "name": "Create Exam",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('exam_id', json.data.id);",
+            "  console.log('Exam ID saved:', json.data.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/exams", "host": ["{{base_url}}"], "path": ["exams"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Midterm Exam\",\n  \"totalMarks\": 100,\n  \"passingMarks\": 50,\n  \"examDate\": \"2026-11-01T09:00:00.000Z\",\n  \"classId\": \"{{class_id}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get Exam with Grades",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/exams/{{exam_id}}", "host": ["{{base_url}}"], "path": ["exams", "{{exam_id}}"] }
+          }
+        },
+        {
+          "name": "Grade Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/exams/{{exam_id}}/grades", "host": ["{{base_url}}"], "path": ["exams", "{{exam_id}}", "grades"] },
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{student_id}}\",\n  \"marksObtained\": 85,\n  \"grade\": \"A\",\n  \"feedback\": \"Excellent work!\"\n}" }
+          }
+        },
+        {
+          "name": "Bulk Grade Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/exams/{{exam_id}}/grades/bulk", "host": ["{{base_url}}"], "path": ["exams", "{{exam_id}}", "grades", "bulk"] },
+            "body": { "mode": "raw", "raw": "{\n  \"grades\": [\n    { \"studentId\": \"{{student_id}}\", \"marksObtained\": 90, \"grade\": \"A+\" }\n  ]\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⭐ Assessments",
+      "item": [
+        {
+          "name": "List Assessments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/assessments?studentId={{student_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["assessments"],
+              "query": [{ "key": "studentId", "value": "{{student_id}}", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Create Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/assessments", "host": ["{{base_url}}"], "path": ["assessments"] },
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{student_id}}\",\n  \"category\": \"BEHAVIORAL\",\n  \"title\": \"Participation in class\",\n  \"score\": 4,\n  \"maxScore\": 5,\n  \"notes\": \"Very active and helpful\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📁 Files",
+      "item": [
+        {
+          "name": "List Files",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/files", "host": ["{{base_url}}"], "path": ["files"] }
+          }
+        },
+        {
+          "name": "Add File (link)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/files", "host": ["{{base_url}}"], "path": ["files"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Algebra Worksheet\",\n  \"description\": \"Practice problems chapter 5\",\n  \"fileType\": \"DOCUMENT\",\n  \"fileUrl\": \"https://example.com/worksheet.pdf\",\n  \"isParentVisible\": false,\n  \"isStudentVisible\": true\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] }
+          }
+        },
+        {
+          "name": "Send to All Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] },
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"GENERAL\",\n  \"title\": \"Class reminder\",\n  \"body\": \"Don't forget tomorrow's class at 10am!\",\n  \"targetAll\": true\n}" }
+          }
+        },
+        {
+          "name": "Send to One Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] },
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"PAYMENT\",\n  \"title\": \"Payment reminder\",\n  \"body\": \"Your October fees are due by the 31st.\",\n  \"targetAll\": false,\n  \"targetStudentId\": \"{{student_id}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👪 Parents",
+      "item": [
+        {
+          "name": "Teacher — Create Invitation",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('invite_token', json.data.token);",
+            "  console.log('Invite token saved:', json.data.token);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/parents/teacher/invitations", "host": ["{{base_url}}"], "path": ["parents", "teacher", "invitations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{student_id}}\",\n  \"canViewAttendance\": true,\n  \"canViewGrades\": true,\n  \"canViewPayments\": false,\n  \"canViewAssessments\": false,\n  \"canViewFiles\": true\n}" }
+          }
+        },
+        {
+          "name": "Teacher — List Student Links",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/parents/teacher/students/{{student_id}}/links", "host": ["{{base_url}}"], "path": ["parents", "teacher", "students", "{{student_id}}", "links"] }
+          }
+        },
+        {
+          "name": "Parent — Accept Invitation",
+          "description": "Login as a PARENT account first, then use that token here",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer PARENT_TOKEN_HERE" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/parents/parent/invitations/accept", "host": ["{{base_url}}"], "path": ["parents", "parent", "invitations", "accept"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{invite_token}}\"\n}" }
+          }
+        },
+        {
+          "name": "Parent — My Students",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer PARENT_TOKEN_HERE" }],
+            "url": { "raw": "{{base_url}}/parents/parent/my-students", "host": ["{{base_url}}"], "path": ["parents", "parent", "my-students"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📖 Swagger Docs",
+      "item": [
+        {
+          "name": "Open API Docs (browser)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3000/api/docs", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["api", "docs"] }
+          }
+        }
+      ]
+    }
+  ]
+}

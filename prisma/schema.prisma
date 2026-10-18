@@ -1,0 +1,544 @@
+// ClassPilot - Prisma Schema
+// تصميم قاعدة البيانات الكاملة لمنصة ClassPilot
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  EXEMPTED
+  OVERDUE
+}
+
+enum ExemptionType {
+  FULL
+  PARTIAL
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum NotificationType {
+  ATTENDANCE
+  PAYMENT
+  EXAM
+  ASSESSMENT
+  FILE
+  GENERAL
+  INVITATION
+}
+
+enum FileType {
+  DOCUMENT
+  IMAGE
+  VIDEO
+  AUDIO
+  LINK
+  OTHER
+}
+
+enum AssessmentCategory {
+  BEHAVIORAL
+  ACADEMIC
+  SOCIAL
+  OTHER
+}
+
+// ============================================================
+// CORE USER MODEL
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  avatarUrl    String?  @map("avatar_url")
+  isActive     Boolean  @default(true) @map("is_active")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  // Relations
+  teacherProfile  TeacherProfile?
+  studentProfile  StudentProfile?
+  parentProfile   ParentProfile?
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================================
+// TEACHER WORKSPACE
+// ============================================================
+
+model TeacherProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  subject     String?
+  bio         String?
+  // QR Attendance feature toggle
+  qrEnabled   Boolean  @default(false) @map("qr_enabled")
+  // Workspace settings
+  workspaceSettings Json @default("{}") @map("workspace_settings")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students      Student[]
+  classes       Class[]
+  exams         Exam[]
+  files         TeacherFile[]
+  notifications Notification[]
+  qrSessions    QRSession[]
+  auditLogs     AuditLog[]
+
+  @@map("teacher_profiles")
+}
+
+// ============================================================
+// STUDENT
+// ============================================================
+
+model StudentProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student?
+
+  @@map("student_profiles")
+}
+
+model Student {
+  id              String   @id @default(uuid())
+  teacherId       String   @map("teacher_id")
+  // Student may have a User account (optional, can be offline student)
+  studentProfileId String? @unique @map("student_profile_id")
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  email           String?
+  phone           String?
+  dateOfBirth     DateTime? @map("date_of_birth")
+  notes           String?
+  isActive        Boolean  @default(true) @map("is_active")
+  enrolledAt      DateTime @default(now()) @map("enrolled_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  studentProfile  StudentProfile? @relation(fields: [studentProfileId], references: [id])
+  classEnrollments ClassEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  payments        Payment[]
+  examGrades      ExamGrade[]
+  assessments     Assessment[]
+  parentLinks     ParentStudentLink[]
+  notifications   StudentNotification[]
+
+  @@unique([teacherId, email], name: "unique_student_email_per_teacher")
+  @@map("students")
+}
+
+// ============================================================
+// PARENT
+// ============================================================
+
+model ParentProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentLinks ParentStudentLink[]
+
+  @@map("parent_profiles")
+}
+
+model ParentStudentLink {
+  id              String   @id @default(uuid())
+  parentId        String   @map("parent_id")
+  studentId       String   @map("student_id")
+  // Permissions controlled by teacher per link
+  canViewAttendance  Boolean @default(true)  @map("can_view_attendance")
+  canViewGrades      Boolean @default(true)  @map("can_view_grades")
+  canViewPayments    Boolean @default(false) @map("can_view_payments")
+  canViewAssessments Boolean @default(false) @map("can_view_assessments")
+  canViewFiles       Boolean @default(false) @map("can_view_files")
+  isActive        Boolean  @default(true) @map("is_active")
+  linkedAt        DateTime @default(now()) @map("linked_at")
+  revokedAt       DateTime? @map("revoked_at")
+
+  parent  ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@map("parent_student_links")
+}
+
+model ParentInvitation {
+  id          String           @id @default(uuid())
+  token       String           @unique @default(uuid())
+  studentId   String           @map("student_id")
+  teacherId   String           @map("teacher_id")
+  invitedEmail String?         @map("invited_email")
+  // Permissions to grant upon acceptance
+  canViewAttendance  Boolean @default(true)  @map("can_view_attendance")
+  canViewGrades      Boolean @default(true)  @map("can_view_grades")
+  canViewPayments    Boolean @default(false) @map("can_view_payments")
+  canViewAssessments Boolean @default(false) @map("can_view_assessments")
+  canViewFiles       Boolean @default(false) @map("can_view_files")
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime         @map("expires_at")
+  acceptedAt  DateTime?        @map("accepted_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("parent_invitations")
+}
+
+// ============================================================
+// CLASSES
+// ============================================================
+
+model Class {
+  id          String   @id @default(uuid())
+  teacherId   String   @map("teacher_id")
+  name        String
+  description String?
+  subject     String?
+  schedule    Json?    // e.g. [{ day: "MON", startTime: "09:00", endTime: "10:30" }]
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  teacher     TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  enrollments ClassEnrollment[]
+  attendanceSessions AttendanceSession[]
+  exams       Exam[]
+
+  @@map("classes")
+}
+
+model ClassEnrollment {
+  id         String   @id @default(uuid())
+  classId    String   @map("class_id")
+  studentId  String   @map("student_id")
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+  isActive   Boolean  @default(true) @map("is_active")
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@map("class_enrollments")
+}
+
+// ============================================================
+// ATTENDANCE
+// ============================================================
+
+model AttendanceSession {
+  id          String   @id @default(uuid())
+  classId     String   @map("class_id")
+  teacherId   String   @map("teacher_id")
+  sessionDate DateTime @map("session_date")
+  topic       String?
+  notes       String?
+  // QR Code for this session (null if QR not used)
+  qrSessionId String?  @unique @map("qr_session_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  qrSession QRSession? @relation(fields: [qrSessionId], references: [id])
+  records   AttendanceRecord[]
+
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id          String           @id @default(uuid())
+  sessionId   String           @map("session_id")
+  studentId   String           @map("student_id")
+  status      AttendanceStatus @default(PRESENT)
+  markedAt    DateTime         @default(now()) @map("marked_at")
+  markedById  String?          @map("marked_by_id") // Teacher or QR scan
+  notes       String?
+  // Whether marked via QR
+  viaQr       Boolean          @default(false) @map("via_qr")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+// ============================================================
+// QR SESSIONS
+// ============================================================
+
+model QRSession {
+  id          String   @id @default(uuid())
+  teacherId   String   @map("teacher_id")
+  token       String   @unique @default(uuid())
+  // Encrypted/signed payload
+  payload     String
+  expiresAt   DateTime @map("expires_at")
+  isUsed      Boolean  @default(false) @map("is_used")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teacher          TeacherProfile    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  attendanceSession AttendanceSession?
+
+  @@map("qr_sessions")
+}
+
+// ============================================================
+// PAYMENTS
+// ============================================================
+
+model Payment {
+  id          String        @id @default(uuid())
+  studentId   String        @map("student_id")
+  teacherId   String        @map("teacher_id")
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    String        @default("EGP")
+  status      PaymentStatus @default(PENDING)
+  dueDate     DateTime?     @map("due_date")
+  paidAt      DateTime?     @map("paid_at")
+  description String?
+  notes       String?
+  receiptUrl  String?       @map("receipt_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exemption PaymentExemption?
+
+  @@map("payments")
+}
+
+model PaymentExemption {
+  id            String        @id @default(uuid())
+  paymentId     String        @unique @map("payment_id")
+  type          ExemptionType
+  // For PARTIAL: amount or percentage exempted
+  exemptAmount  Decimal?      @map("exempt_amount") @db.Decimal(10, 2)
+  exemptPercent Decimal?      @map("exempt_percent") @db.Decimal(5, 2)
+  reason        String
+  approvedById  String        @map("approved_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("payment_exemptions")
+}
+
+// ============================================================
+// EXAMS & GRADES
+// ============================================================
+
+model Exam {
+  id          String   @id @default(uuid())
+  teacherId   String   @map("teacher_id")
+  classId     String?  @map("class_id")
+  title       String
+  description String?
+  totalMarks  Decimal  @map("total_marks") @db.Decimal(8, 2)
+  passingMarks Decimal? @map("passing_marks") @db.Decimal(8, 2)
+  examDate    DateTime? @map("exam_date")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class   Class?         @relation(fields: [classId], references: [id])
+  grades  ExamGrade[]
+
+  @@map("exams")
+}
+
+model ExamGrade {
+  id         String   @id @default(uuid())
+  examId     String   @map("exam_id")
+  studentId  String   @map("student_id")
+  marksObtained Decimal @map("marks_obtained") @db.Decimal(8, 2)
+  grade      String?  // Letter grade e.g. A, B, C
+  feedback   String?
+  gradedAt   DateTime @default(now()) @map("graded_at")
+  gradedById String   @map("graded_by_id")
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, studentId])
+  @@map("exam_grades")
+}
+
+// ============================================================
+// ASSESSMENTS
+// ============================================================
+
+model Assessment {
+  id         String             @id @default(uuid())
+  studentId  String             @map("student_id")
+  teacherId  String             @map("teacher_id")
+  category   AssessmentCategory @default(ACADEMIC)
+  title      String
+  description String?
+  score      Int?               // 1-5 or custom scale
+  maxScore   Int?               @map("max_score") @default(5)
+  notes      String?
+  assessedAt DateTime           @default(now()) @map("assessed_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("assessments")
+}
+
+// ============================================================
+// FILES
+// ============================================================
+
+model TeacherFile {
+  id          String   @id @default(uuid())
+  teacherId   String   @map("teacher_id")
+  classId     String?  @map("class_id")
+  title       String
+  description String?
+  fileType    FileType @default(OTHER) @map("file_type")
+  fileUrl     String   @map("file_url")
+  mimeType    String?  @map("mime_type")
+  sizeBytes   Int?     @map("size_bytes")
+  // Can parents view this file?
+  isParentVisible Boolean @default(false) @map("is_parent_visible")
+  // Is visible to students?
+  isStudentVisible Boolean @default(true) @map("is_student_visible")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_files")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id          String           @id @default(uuid())
+  teacherId   String           @map("teacher_id")
+  type        NotificationType @default(GENERAL)
+  title       String
+  body        String
+  // Target: all students, specific class, specific student
+  targetAll   Boolean          @default(false) @map("target_all")
+  targetClassId String?        @map("target_class_id")
+  targetStudentId String?      @map("target_student_id")
+  // Parent visibility
+  notifyParents Boolean        @default(false) @map("notify_parents")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  recipients StudentNotification[]
+
+  @@map("notifications")
+}
+
+model StudentNotification {
+  id             String   @id @default(uuid())
+  notificationId String   @map("notification_id")
+  studentId      String   @map("student_id")
+  isRead         Boolean  @default(false) @map("is_read")
+  readAt         DateTime? @map("read_at")
+  deliveredAt    DateTime @default(now()) @map("delivered_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, studentId])
+  @@map("student_notifications")
+}
+
+// ============================================================
+// AUTH: Refresh Tokens
+// ============================================================
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  teacherId  String?  @map("teacher_id")
+  action     String   // e.g. "student.create", "payment.update"
+  resource   String?  // Resource type
+  resourceId String?  @map("resource_id")
+  metadata   Json?    // Additional context (no sensitive data)
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user    User?          @relation(fields: [userId], references: [id])
+  teacher TeacherProfile? @relation(fields: [teacherId], references: [id])
+
+  @@map("audit_logs")
+}
